@@ -55,15 +55,20 @@ def get_wordnet_pos(word):
                 "R": nltk.corpus.wordnet.ADV}
     return tag_dict.get(tag, nltk.corpus.wordnet.NOUN)
 
+class CheckTrigger:
+    def __init__(self, char):
+        self.char = char
+
 
 class Editor:
     def __init__(self, v_lemmatize):
 
-
+        self.test_content = 'The quick brown fox jumps over the lazy dog.'
         self.aggsc = False
         self.aggsc_setup()
         self.cache_word = None
         self.v_lemmatize = v_lemmatize
+        self.init_checked = 0
 
         self.mode = 1
         self.file_path = ''
@@ -143,6 +148,11 @@ class Editor:
     def aggsc_toggle(self, event=None):
         self.aggsc = not(self.aggsc)
         self.footer_aggsc_info.config(text=f"AggSC: {'Idle' if self.aggsc else 'OFF'}")
+        if self.init_checked == 0 and self.aggsc:
+            event = CheckTrigger(' ')
+            self.on_content_update(event=event)
+
+            self.init_checked = 1
 
     def aggsc_setup(self):
         self.english_words = np.array(list(set(nltk.corpus.words.words())))
@@ -153,18 +163,20 @@ class Editor:
         if self.cache_word != None:
             with open(WLIST_PATH, 'a') as f:
                 f.write(f'{self.cache_word}\n')
+
+            self.allow_list = np.append(self.allow_list, self.cache_word)
             self.cache_word = None
             self.text_area.insert(END, "Word successfully added")
 
     def on_content_update(self, event=None):
         self.update_title(text=f"{self.file_name}*")
 
-        if event.char == ' ' and self.aggsc:
-            # aggressive spell check
+        if event.char == ' ' and self.aggsc: 
             self.footer_aggsc_info.config(text=f"AggSC: Checking")
-            
+
             t1 = time.perf_counter()
 
+            # aggressive spell check
             """
             1. get contents
             2. strip of newlines and whitespaces
@@ -176,6 +188,9 @@ class Editor:
             """
 
             sc_content = self.text_area.get(1.0, END) 
+            if sc_content.isspace(): 
+                sc_content = self.test_content
+
             sc_content = sc_content.strip()
             sc_content = re.sub(r'[^\w\s]', '', sc_content)
             sc_content = sc_content.lower()
@@ -201,7 +216,7 @@ class Editor:
                 
                 self.cache_word = invalid_words[0]
             
-            print(time.perf_counter() - t1)
+            print(f'{(time.perf_counter() - t1):.4f}')
 
             self.footer_aggsc_info.config(text=f"AggSC: Idle")
             
@@ -253,7 +268,7 @@ class Editor:
 
 
     def save_file(self, event=None):
-        if self.file_path != None:
+        if self.file_path != None and self.file_path != '':
             with open(self.file_path, 'w') as file:
                 file.write(self.text_area.get(1.0, END))
 
