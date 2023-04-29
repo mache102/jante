@@ -1,0 +1,6 @@
+My name is Walter Hartwell White. 
+I live at 308 Belmont Avenue, 
+Ontario, California 91764. 
+Additional line of text
+This is now test4.txt
+
