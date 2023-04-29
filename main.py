@@ -1,6 +1,10 @@
 from datetime import datetime
 import logging
+
+# nlp tookit thingy
 import nltk
+
+
 from nltk.stem import WordNetLemmatizer
 
 import numpy as np
@@ -14,7 +18,7 @@ from tkinter import filedialog
 
 WLIST_PATH = "allow.wlist"
 TITLE = "Just A Normal Text Editor"
-MESSAGE = "Your text was deleted due to spelling error(s).\nThe word(s) \"[word]\" are not recognized.\nIf you think this was a mistake, please add the word to the whitelist with Ctrl+M.\n"
+MESSAGE = "Your text was deleted due to spelling error(s).\nThe word(s) \"[word]\" are not recognized.\nIf you think this was a mistake, please add the word to the whitelist with Ctrl+M.\n\nThis action is irreversible."
 
 def log_setup(logger_file, format='%(name)s - %(levelname)s - %(message)s'):
     logging.basicConfig(filename=logger_file, filemode='w', format=format)
@@ -61,20 +65,25 @@ class CheckTrigger:
 
 
 class Editor:
-    def __init__(self, v_lemmatize):
+    def __init__(self, v_lemmatize, troll_mode=False):
 
+        self.troll_mode = troll_mode 
+        print(troll_mode)
+        
         self.test_content = 'The quick brown fox jumps over the lazy dog.'
-        self.aggsc = False
+        self.aggsc = troll_mode == True
         self.aggsc_setup()
         self.cache_word = None
         self.v_lemmatize = v_lemmatize
         self.init_checked = 0
+        self.enabled_display = 'Idle' if troll_mode == False else 'deal with it'
 
         self.mode = 1
         self.file_path = ''
 
         self.master = Tk()
         self.master.attributes("-topmost", True)
+        self.master.iconbitmap('icon.ico')
 
         # Title
         self.file_name = 'Untitled'
@@ -92,7 +101,7 @@ class Editor:
         self.footer_doc_status = Label(self.footer_frame, text=TITLE)
         self.footer_doc_status.pack(side=LEFT)
 
-        self.footer_aggsc_info = Label(self.footer_frame, text=f"AggSC: {'Idle' if self.aggsc else 'OFF'}")
+        self.footer_aggsc_info = Label(self.footer_frame, text=f"AggSC: {self.enabled_display if self.aggsc else 'OFF'}")
         self.footer_aggsc_info.pack(side=RIGHT)
 
         
@@ -146,8 +155,11 @@ class Editor:
 
 
     def aggsc_toggle(self, event=None):
-        self.aggsc = not(self.aggsc)
-        self.footer_aggsc_info.config(text=f"AggSC: {'Idle' if self.aggsc else 'OFF'}")
+        if self.troll_mode:
+            self.aggsc = True
+        else:
+            self.aggsc = not(self.aggsc)
+        self.footer_aggsc_info.config(text=f"AggSC: {self.enabled_display if self.aggsc else 'OFF'}")
         if self.init_checked == 0 and self.aggsc:
             event = CheckTrigger(' ')
             self.on_content_update(event=event)
@@ -159,12 +171,17 @@ class Editor:
         with open(WLIST_PATH, 'r') as f:
             self.allow_list = np.array([word.lower() for word in f.read().splitlines()])
 
+        if self.troll_mode: 
+            self.allow_list = np.array([])
+
     def whitelist_word(self, event=None):
         if self.cache_word != None:
             with open(WLIST_PATH, 'a') as f:
                 f.write(f'{self.cache_word}\n')
 
-            self.allow_list = np.append(self.allow_list, self.cache_word)
+            if not self.troll_mode:
+                self.allow_list = np.append(self.allow_list, self.cache_word)
+            
             self.cache_word = None
             self.text_area.insert(END, "Word successfully added")
 
@@ -188,6 +205,7 @@ class Editor:
             """
 
             sc_content = self.text_area.get(1.0, END) 
+
             if sc_content.isspace(): 
                 sc_content = self.test_content
 
@@ -218,7 +236,7 @@ class Editor:
             
             print(f'{(time.perf_counter() - t1):.4f}')
 
-            self.footer_aggsc_info.config(text=f"AggSC: Idle")
+            self.footer_aggsc_info.config(text=f"AggSC: {self.enabled_display}")
             
 
     def updater(self):
@@ -300,7 +318,7 @@ def main():
     log_setup('debug.log')
 
     v_lemmatize = nltk_setup()
-    Editor(v_lemmatize)
+    Editor(v_lemmatize, troll_mode=False)
 
 if __name__ == '__main__':
     main()
